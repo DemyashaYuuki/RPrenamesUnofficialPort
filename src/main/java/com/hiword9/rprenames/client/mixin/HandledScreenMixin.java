@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.hiword9.rprenames.client.model.RenameCatalog;
+import com.hiword9.rprenames.client.ext.RenamePanelScreenExt;
 
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
