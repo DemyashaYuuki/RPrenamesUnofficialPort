@@ -21,6 +21,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+
 @Mixin(AnvilScreen.class)
 public abstract class AnvilScreenMixin extends Screen {
     @Shadow private TextFieldWidget nameField;
@@ -61,8 +63,9 @@ public abstract class AnvilScreenMixin extends Screen {
         int hidden = Math.max(0, totalMatches - filtered.size());
 
         rprenames$visibleEntries = new ArrayList<>(filtered);
-        rprenames$boxX = this.x - RPR_BOX_WIDTH - 6;
-        rprenames$boxY = this.y + 4;
+        HandledScreen<?> self = (HandledScreen<?>) (Object) this;
+        rprenames$boxX = ((HandledScreenAccessor) self).rprenames$getX() - RPR_BOX_WIDTH - 6;
+        rprenames$boxY = ((HandledScreenAccessor) self).rprenames$getY() + 4;
 
         int rows = filtered.size() + 1 + (hidden > 0 ? 1 : 0);
         int height = 8 + rows * rprenames$rowHeight;
