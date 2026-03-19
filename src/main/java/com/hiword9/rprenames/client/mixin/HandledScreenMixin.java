@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(HandledScreen.class)
 public abstract class HandledScreenMixin extends Screen implements RenamePanelScreenExt {
@@ -88,6 +89,36 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             int travel = Math.max(1, trackHeight - thumbHeight);
             int thumbOffset = (int) Math.round((double) travel * rprenames$scrollOffset / maxOffset);
             context.fill(barX, trackTop + thumbOffset, barX + 2, trackTop + thumbOffset + thumbHeight, 0xFF6AA6FF);
+        }
+    }
+
+
+    @Inject(method = "mouseClicked(DDI)Z", at = @At("HEAD"), cancellable = true)
+    private void rprenames$onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (button != 0 || !rprenames$refreshPanelState() || !rprenames$isInsidePanel(mouseX, mouseY)) {
+            return;
+        }
+
+        int rowIndex = rprenames$getHoveredRow(mouseX, mouseY);
+        if (rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size()) {
+            TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
+            nameField.setText(rprenames$visibleEntries.get(rowIndex));
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "mouseScrolled(DDDD)Z", at = @At("HEAD"), cancellable = true)
+    private void rprenames$onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
+        if (!rprenames$refreshPanelState() || !rprenames$canScroll() || !rprenames$isInsidePanel(mouseX, mouseY)) {
+            return;
+        }
+
+        if (verticalAmount < 0) {
+            rprenames$scroll(1);
+            cir.setReturnValue(true);
+        } else if (verticalAmount > 0) {
+            rprenames$scroll(-1);
+            cir.setReturnValue(true);
         }
     }
 
