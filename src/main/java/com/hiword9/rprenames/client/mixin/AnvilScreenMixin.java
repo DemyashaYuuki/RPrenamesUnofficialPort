@@ -8,32 +8,26 @@ import com.hiword9.rprenames.client.model.RenameCatalog;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.AnvilScreen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.item.ItemStack;
-import net.minecraft.screen.AnvilScreenHandler;
 import net.minecraft.text.Text;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-
 @Mixin(AnvilScreen.class)
 public abstract class AnvilScreenMixin extends Screen {
-    @Shadow private TextFieldWidget nameField;
-    @Shadow protected int backgroundWidth;
-
-        @Unique private static final int RPR_BOX_WIDTH = 112;
+    @Unique private static final int RPR_BOX_WIDTH = 112;
     @Unique private static final int RPR_MAX_ROWS = 8;
     @Unique private List<String> rprenames$visibleEntries = List.of();
     @Unique private int rprenames$boxX;
     @Unique private int rprenames$boxY;
-    @Unique private int rprenames$rowHeight = 12;
+    @Unique private final int rprenames$rowHeight = 12;
 
     protected AnvilScreenMixin(Text title) {
         super(title);
@@ -51,6 +45,7 @@ public abstract class AnvilScreenMixin extends Screen {
             return;
         }
 
+        TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
         String query = nameField.getText();
         List<String> filtered = RenameCatalog.filter(input.getItem(), query, RPR_MAX_ROWS);
         if (filtered.isEmpty()) {
@@ -63,6 +58,7 @@ public abstract class AnvilScreenMixin extends Screen {
         int hidden = Math.max(0, totalMatches - filtered.size());
 
         rprenames$visibleEntries = new ArrayList<>(filtered);
+
         HandledScreen<?> self = (HandledScreen<?>) (Object) this;
         rprenames$boxX = ((HandledScreenAccessor) self).rprenames$getX() - RPR_BOX_WIDTH - 6;
         rprenames$boxY = ((HandledScreenAccessor) self).rprenames$getY() + 4;
@@ -116,7 +112,7 @@ public abstract class AnvilScreenMixin extends Screen {
             boolean inside = mouseX >= rprenames$boxX && mouseX <= rprenames$boxX + RPR_BOX_WIDTH
                     && mouseY >= rowY - 1 && mouseY <= rowY + 9;
             if (inside) {
-                nameField.setText(entry);
+                ((AnvilScreenAccessor) (Object) this).rprenames$getNameField().setText(entry);
                 cir.setReturnValue(true);
                 return;
             }
