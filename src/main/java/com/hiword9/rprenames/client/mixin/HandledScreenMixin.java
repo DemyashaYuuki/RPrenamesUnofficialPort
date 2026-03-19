@@ -18,10 +18,9 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(HandledScreen.class)
-public abstract class HandledScreenMixin extends Screen {
+public abstract class HandledScreenMixin extends Screen implements RenamePanelScreenExt {
     @Unique private static final int RPR_PANEL_WIDTH = 132;
     @Unique private static final int RPR_VISIBLE_ROWS = 8;
     @Unique private static final int RPR_HEADER_HEIGHT = 12;
@@ -92,41 +91,10 @@ public abstract class HandledScreenMixin extends Screen {
         }
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void rprenames$onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (button != 0 || !rprenames$refreshPanelState()) {
-            return;
-        }
-        if (!rprenames$isInsidePanel(mouseX, mouseY)) {
-            return;
-        }
 
-        int rowIndex = rprenames$getHoveredRow(mouseX, mouseY);
-        if (rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size()) {
-            TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
-            nameField.setText(rprenames$visibleEntries.get(rowIndex));
-        }
-        cir.setReturnValue(true);
-    }
-
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    private void rprenames$onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
-        if (!rprenames$refreshPanelState() || !rprenames$canScroll() || !rprenames$isInsidePanel(mouseX, mouseY)) {
-            return;
-        }
-
-        if (verticalAmount < 0) {
-            rprenames$scrollOffset = Math.min(rprenames$scrollOffset + 1, Math.max(0, rprenames$allEntries.size() - RPR_VISIBLE_ROWS));
-        } else if (verticalAmount > 0) {
-            rprenames$scrollOffset = Math.max(rprenames$scrollOffset - 1, 0);
-        }
-
-        rprenames$refreshVisibleEntries();
-        cir.setReturnValue(true);
-    }
-
+    @Override
     @Unique
-    private boolean rprenames$refreshPanelState() {
+    public boolean rprenames$refreshPanelState() {
         if (client == null || client.player == null || !((Object) this instanceof AnvilScreen anvilScreen)) {
             rprenames$clearState();
             return false;
@@ -171,13 +139,15 @@ public abstract class HandledScreenMixin extends Screen {
         }
     }
 
+    @Override
     @Unique
-    private boolean rprenames$canScroll() {
+    public boolean rprenames$canScroll() {
         return rprenames$allEntries.size() > RPR_VISIBLE_ROWS;
     }
 
+    @Override
     @Unique
-    private boolean rprenames$isInsidePanel(double mouseX, double mouseY) {
+    public boolean rprenames$isInsidePanel(double mouseX, double mouseY) {
         int screenX = ((HandledScreenAccessor) (Object) this).rprenames$getX();
         int screenY = ((HandledScreenAccessor) (Object) this).rprenames$getY();
         int panelAbsX = screenX + rprenames$panelLocalX;
@@ -188,8 +158,9 @@ public abstract class HandledScreenMixin extends Screen {
                 && mouseY <= panelAbsY + rprenames$panelHeight;
     }
 
+    @Override
     @Unique
-    private int rprenames$getHoveredRow(double mouseX, double mouseY) {
+    public int rprenames$getHoveredRow(double mouseX, double mouseY) {
         int screenX = ((HandledScreenAccessor) (Object) this).rprenames$getX();
         int screenY = ((HandledScreenAccessor) (Object) this).rprenames$getY();
         int panelAbsX = screenX + rprenames$panelLocalX;
@@ -204,6 +175,21 @@ public abstract class HandledScreenMixin extends Screen {
         }
         int rowIndex = relativeY / RPR_ROW_HEIGHT;
         return rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size() ? rowIndex : -1;
+    }
+
+
+    @Override
+    @Unique
+    public java.util.List<String> rprenames$getVisibleEntries() {
+        return java.util.List.copyOf(rprenames$visibleEntries);
+    }
+
+    @Override
+    @Unique
+    public void rprenames$scroll(int amount) {
+        int maxOffset = Math.max(0, rprenames$allEntries.size() - RPR_VISIBLE_ROWS);
+        rprenames$scrollOffset = Math.max(0, Math.min(maxOffset, rprenames$scrollOffset + amount));
+        rprenames$refreshVisibleEntries();
     }
 
     @Unique
