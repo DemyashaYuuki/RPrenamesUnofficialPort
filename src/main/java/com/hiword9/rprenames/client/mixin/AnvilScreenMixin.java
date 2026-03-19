@@ -24,8 +24,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AnvilScreen.class)
 public abstract class AnvilScreenMixin extends Screen {
     @Shadow private TextFieldWidget nameField;
-    @Shadow protected int x;
-    @Shadow protected int y;
     @Shadow protected int backgroundWidth;
 
         @Unique private static final int RPR_BOX_WIDTH = 112;
