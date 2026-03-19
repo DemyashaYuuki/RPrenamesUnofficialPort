@@ -93,9 +93,10 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     }
 
 
+
     @Inject(method = "mouseClicked(DDI)Z", at = @At("HEAD"), cancellable = true)
     private void rprenames$onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (button != 0 || !rprenames$refreshPanelState() || !rprenames$isInsidePanel(mouseX, mouseY)) {
+        if (!(this instanceof AnvilScreen) || button != 0 || !rprenames$refreshPanelState() || !rprenames$isInsidePanel(mouseX, mouseY)) {
             return;
         }
 
@@ -109,19 +110,20 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
 
     @Inject(method = "mouseScrolled(DDDD)Z", at = @At("HEAD"), cancellable = true)
     private void rprenames$onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
-        if (!rprenames$refreshPanelState() || !rprenames$canScroll() || !rprenames$isInsidePanel(mouseX, mouseY)) {
+        if (!(this instanceof AnvilScreen) || !rprenames$refreshPanelState() || !rprenames$canScroll() || !rprenames$isInsidePanel(mouseX, mouseY)) {
             return;
         }
 
         if (verticalAmount < 0) {
             rprenames$scroll(1);
-            cir.setReturnValue(true);
         } else if (verticalAmount > 0) {
             rprenames$scroll(-1);
-            cir.setReturnValue(true);
+        } else {
+            return;
         }
-    }
 
+        cir.setReturnValue(true);
+    }
 
     @Override
     @Unique
