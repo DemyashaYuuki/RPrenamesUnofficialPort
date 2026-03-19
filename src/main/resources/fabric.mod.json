@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "Compact RP Renames-style anvil helper for the new 1.21.10/1.21.11 item model rename system.",
+  "authors": [
+    "OpenAI"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "icon": "assets/rprenames/icon.png",
+  "entrypoints": {
+    "client": [
+      "com.hiword9.rprenames.client.RPRenamesClient"
+    ]
+  },
+  "mixins": [
+    "rprenames.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version_dependency}",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

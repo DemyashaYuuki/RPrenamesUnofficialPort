@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.hiword9.rprenames.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "rprenames-refmap.json",
+  "client": [
+    "BakedModelManagerMixin",
+    "AnvilScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
