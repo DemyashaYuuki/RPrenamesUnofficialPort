@@ -5,7 +5,6 @@
   "refmap": "rprenames-refmap.json",
   "client": [
     "BakedModelManagerMixin",
-    "AnvilScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
