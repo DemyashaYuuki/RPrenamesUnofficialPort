@@ -10,12 +10,6 @@ base {
     archivesName = "${project.archives_base_name}-${project.minecraft_version}"
 }
 
-loom {
-    mixin {
-        defaultRefmapName = 'rprenames-refmap.json'
-    }
-}
-
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
     mavenCentral()
