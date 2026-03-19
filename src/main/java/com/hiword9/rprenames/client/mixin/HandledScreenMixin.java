@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.hiword9.rprenames.client.model.RenameCatalog;
 
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.AnvilScreen;
@@ -94,9 +95,13 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
 
 
 
-    @Inject(method = "mouseClicked(DDI)Z", at = @At("HEAD"), cancellable = true)
-    private void rprenames$onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (!(this instanceof AnvilScreen) || button != 0 || !rprenames$refreshPanelState() || !rprenames$isInsidePanel(mouseX, mouseY)) {
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void rprenames$onMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
+
+        if (button != 0 || !rprenames$refreshPanelState() || !rprenames$isInsidePanel(mouseX, mouseY)) {
             return;
         }
 
@@ -108,9 +113,9 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         }
     }
 
-    @Inject(method = "mouseScrolled(DDDD)Z", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     private void rprenames$onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
-        if (!(this instanceof AnvilScreen) || !rprenames$refreshPanelState() || !rprenames$canScroll() || !rprenames$isInsidePanel(mouseX, mouseY)) {
+        if (!rprenames$refreshPanelState() || !rprenames$canScroll() || !rprenames$isInsidePanel(mouseX, mouseY)) {
             return;
         }
 
