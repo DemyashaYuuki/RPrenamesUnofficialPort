@@ -18,7 +18,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AnvilScreen.class)
 public abstract class AnvilScreenMixin extends Screen {
@@ -101,22 +100,4 @@ public abstract class AnvilScreenMixin extends Screen {
         context.fill(x + width - 1, y, x + width, y + height, color);
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void rprenames$clickSuggestion(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (button != 0 || rprenames$visibleEntries.isEmpty()) {
-            return;
-        }
-
-        int rowY = rprenames$boxY + 4 + rprenames$rowHeight;
-        for (String entry : rprenames$visibleEntries) {
-            boolean inside = mouseX >= rprenames$boxX && mouseX <= rprenames$boxX + RPR_BOX_WIDTH
-                    && mouseY >= rowY - 1 && mouseY <= rowY + 9;
-            if (inside) {
-                ((AnvilScreenAccessor) (Object) this).rprenames$getNameField().setText(entry);
-                cir.setReturnValue(true);
-                return;
-            }
-            rowY += rprenames$rowHeight;
-        }
-    }
 }
