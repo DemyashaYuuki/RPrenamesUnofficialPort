@@ -7,7 +7,7 @@
     "BakedModelManagerMixin",
     "HandledScreenAccessor",
     "AnvilScreenAccessor",
-    "AnvilScreenMixin"
+    "HandledScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
