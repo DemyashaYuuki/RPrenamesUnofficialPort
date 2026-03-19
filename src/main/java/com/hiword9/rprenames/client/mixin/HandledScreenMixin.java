@@ -3,8 +3,8 @@ package com.hiword9.rprenames.client.mixin;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.hiword9.rprenames.client.model.RenameCatalog;
 import com.hiword9.rprenames.client.ext.RenamePanelScreenExt;
+import com.hiword9.rprenames.client.model.RenameCatalog;
 
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -29,6 +29,8 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     @Unique private static final int RPR_HEADER_HEIGHT = 12;
     @Unique private static final int RPR_ROW_HEIGHT = 12;
     @Unique private static final int RPR_PADDING = 4;
+    @Unique private static final int RPR_SCROLLBAR_WIDTH = 8;
+    @Unique private static final int RPR_SCROLL_BUTTON_HEIGHT = 10;
 
     @Unique private final List<String> rprenames$allEntries = new ArrayList<>();
     @Unique private final List<String> rprenames$visibleEntries = new ArrayList<>();
@@ -36,6 +38,7 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     @Unique private int rprenames$panelLocalX = -RPR_PANEL_WIDTH - 8;
     @Unique private int rprenames$panelLocalY = 4;
     @Unique private int rprenames$panelHeight = 0;
+    @Unique private boolean rprenames$hasInputItem = false;
 
     protected HandledScreenMixin(Text title) {
         super(title);
@@ -47,10 +50,8 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return;
         }
 
-        int screenX = ((HandledScreenAccessor) (Object) this).rprenames$getX();
-        int screenY = ((HandledScreenAccessor) (Object) this).rprenames$getY();
-        int panelAbsX = screenX + rprenames$panelLocalX;
-        int panelAbsY = screenY + rprenames$panelLocalY;
+        int panelAbsX = rprenames$getPanelAbsX();
+        int panelAbsY = rprenames$getPanelAbsY();
 
         context.fill(
                 rprenames$panelLocalX,
@@ -62,39 +63,54 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         rprenames$drawBorder(context, rprenames$panelLocalX, rprenames$panelLocalY, RPR_PANEL_WIDTH, rprenames$panelHeight, 0xFF6AA6FF);
         context.drawText(client.textRenderer, Text.translatable("rprenames.title"), rprenames$panelLocalX + RPR_PADDING, rprenames$panelLocalY + RPR_PADDING, 0xFF6AA6FF, false);
 
-        int infoX = rprenames$panelLocalX + RPR_PANEL_WIDTH - RPR_PADDING - client.textRenderer.getWidth(rprenames$allEntries.size() + "");
-        context.drawText(client.textRenderer, String.valueOf(rprenames$allEntries.size()), infoX, rprenames$panelLocalY + RPR_PADDING, 0xFFAAAAAA, false);
+        String countText = String.valueOf(rprenames$allEntries.size());
+        int infoX = rprenames$panelLocalX + RPR_PANEL_WIDTH - RPR_PADDING - client.textRenderer.getWidth(countText);
+        context.drawText(client.textRenderer, countText, infoX, rprenames$panelLocalY + RPR_PADDING, 0xFFAAAAAA, false);
 
         int rowY = rprenames$panelLocalY + RPR_PADDING + RPR_HEADER_HEIGHT;
-        for (int i = 0; i < rprenames$visibleEntries.size(); i++) {
-            String entry = rprenames$visibleEntries.get(i);
-            int absoluteRowY = panelAbsY + RPR_PADDING + RPR_HEADER_HEIGHT + i * RPR_ROW_HEIGHT;
-            boolean hovered = mouseX >= panelAbsX
-                    && mouseX <= panelAbsX + RPR_PANEL_WIDTH
-                    && mouseY >= absoluteRowY - 1
-                    && mouseY <= absoluteRowY + 9;
-            if (hovered) {
-                context.fill(rprenames$panelLocalX + 2, rowY - 1, rprenames$panelLocalX + RPR_PANEL_WIDTH - 2, rowY + 10, 0x443A78D8);
+        int textColor = 0xFFFFFFFF;
+
+        if (rprenames$visibleEntries.isEmpty()) {
+            String message = rprenames$hasInputItem ? "No renames found" : "Put item into left slot";
+            context.drawText(client.textRenderer, message, rprenames$panelLocalX + RPR_PADDING, rowY, 0xFFAAAAAA, false);
+        } else {
+            for (int i = 0; i < rprenames$visibleEntries.size(); i++) {
+                String entry = rprenames$visibleEntries.get(i);
+                int absoluteRowY = panelAbsY + RPR_PADDING + RPR_HEADER_HEIGHT + i * RPR_ROW_HEIGHT;
+                boolean hovered = mouseX >= panelAbsX
+                        && mouseX <= panelAbsX + RPR_PANEL_WIDTH - RPR_SCROLLBAR_WIDTH - 2
+                        && mouseY >= absoluteRowY - 1
+                        && mouseY <= absoluteRowY + 9;
+                if (hovered) {
+                    context.fill(rprenames$panelLocalX + 2, rowY - 1, rprenames$panelLocalX + RPR_PANEL_WIDTH - RPR_SCROLLBAR_WIDTH - 3, rowY + 10, 0x443A78D8);
+                }
+                context.drawText(client.textRenderer, entry, rprenames$panelLocalX + RPR_PADDING, rowY, textColor, false);
+                rowY += RPR_ROW_HEIGHT;
             }
-            context.drawText(client.textRenderer, entry, rprenames$panelLocalX + RPR_PADDING, rowY, 0xFFFFFFFF, false);
-            rowY += RPR_ROW_HEIGHT;
         }
 
         if (rprenames$canScroll()) {
-            int barX = rprenames$panelLocalX + RPR_PANEL_WIDTH - 5;
-            int trackTop = rprenames$panelLocalY + RPR_PADDING + RPR_HEADER_HEIGHT;
-            int trackHeight = RPR_VISIBLE_ROWS * RPR_ROW_HEIGHT;
-            context.fill(barX, trackTop, barX + 2, trackTop + trackHeight, 0x66333333);
+            int barX = rprenames$panelLocalX + RPR_PANEL_WIDTH - RPR_SCROLLBAR_WIDTH - 2;
+            int upY = rprenames$panelLocalY + RPR_PADDING + RPR_HEADER_HEIGHT;
+            int downY = rprenames$panelLocalY + rprenames$panelHeight - RPR_PADDING - RPR_SCROLL_BUTTON_HEIGHT;
+            int trackTop = upY + RPR_SCROLL_BUTTON_HEIGHT + 2;
+            int trackBottom = downY - 2;
+            int trackHeight = Math.max(8, trackBottom - trackTop);
+
+            context.fill(barX, upY, barX + RPR_SCROLLBAR_WIDTH, upY + RPR_SCROLL_BUTTON_HEIGHT, 0x66333333);
+            context.fill(barX, downY, barX + RPR_SCROLLBAR_WIDTH, downY + RPR_SCROLL_BUTTON_HEIGHT, 0x66333333);
+            context.drawText(client.textRenderer, "^", barX + 2, upY + 1, 0xFFFFFFFF, false);
+            context.drawText(client.textRenderer, "v", barX + 2, downY + 1, 0xFFFFFFFF, false);
+
+            context.fill(barX + 2, trackTop, barX + RPR_SCROLLBAR_WIDTH - 2, trackTop + trackHeight, 0x66333333);
 
             int maxOffset = Math.max(1, rprenames$allEntries.size() - RPR_VISIBLE_ROWS);
             int thumbHeight = Math.max(14, (int) Math.floor((double) trackHeight * RPR_VISIBLE_ROWS / rprenames$allEntries.size()));
             int travel = Math.max(1, trackHeight - thumbHeight);
             int thumbOffset = (int) Math.round((double) travel * rprenames$scrollOffset / maxOffset);
-            context.fill(barX, trackTop + thumbOffset, barX + 2, trackTop + thumbOffset + thumbHeight, 0xFF6AA6FF);
+            context.fill(barX + 1, trackTop + thumbOffset, barX + RPR_SCROLLBAR_WIDTH - 1, trackTop + thumbOffset + thumbHeight, 0xFF6AA6FF);
         }
     }
-
-
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void rprenames$onMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
@@ -106,8 +122,17 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return;
         }
 
+        if (rprenames$canScroll()) {
+            int action = rprenames$getScrollClickAction(mouseX, mouseY);
+            if (action != 0) {
+                rprenames$scroll(action);
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+
         int rowIndex = rprenames$getHoveredRow(mouseX, mouseY);
-        if (rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size()) {
+        if (rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size() && (Object) this instanceof AnvilScreen) {
             TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
             nameField.setText(rprenames$visibleEntries.get(rowIndex));
             cir.setReturnValue(true);
@@ -139,20 +164,21 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return false;
         }
 
+        rprenames$panelHeight = 8 + RPR_HEADER_HEIGHT + (RPR_VISIBLE_ROWS * RPR_ROW_HEIGHT);
         ItemStack input = anvilScreen.getScreenHandler().getSlot(0).getStack();
+        rprenames$hasInputItem = !input.isEmpty();
+
         if (input.isEmpty()) {
-            rprenames$clearState();
-            return false;
+            rprenames$allEntries.clear();
+            rprenames$visibleEntries.clear();
+            rprenames$scrollOffset = 0;
+            return true;
         }
 
         TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
         String query = nameField.getText();
         Item item = input.getItem();
         List<String> filtered = RenameCatalog.filter(item, query, Integer.MAX_VALUE);
-        if (filtered.isEmpty()) {
-            rprenames$clearState();
-            return false;
-        }
 
         rprenames$allEntries.clear();
         rprenames$allEntries.addAll(filtered);
@@ -165,8 +191,53 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         }
 
         rprenames$refreshVisibleEntries();
-        rprenames$panelHeight = 8 + RPR_HEADER_HEIGHT + (rprenames$visibleEntries.size() * RPR_ROW_HEIGHT);
-        return !rprenames$visibleEntries.isEmpty();
+        return true;
+    }
+
+    @Unique
+    private int rprenames$getPanelAbsX() {
+        return ((HandledScreenAccessor) (Object) this).rprenames$getX() + rprenames$panelLocalX;
+    }
+
+    @Unique
+    private int rprenames$getPanelAbsY() {
+        return ((HandledScreenAccessor) (Object) this).rprenames$getY() + rprenames$panelLocalY;
+    }
+
+    @Unique
+    private int rprenames$getScrollClickAction(double mouseX, double mouseY) {
+        int panelAbsX = rprenames$getPanelAbsX();
+        int panelAbsY = rprenames$getPanelAbsY();
+        int barX = panelAbsX + RPR_PANEL_WIDTH - RPR_SCROLLBAR_WIDTH - 2;
+        int upY = panelAbsY + RPR_PADDING + RPR_HEADER_HEIGHT;
+        int downY = panelAbsY + rprenames$panelHeight - RPR_PADDING - RPR_SCROLL_BUTTON_HEIGHT;
+        int trackTop = upY + RPR_SCROLL_BUTTON_HEIGHT + 2;
+        int trackBottom = downY - 2;
+
+        if (mouseX < barX || mouseX > barX + RPR_SCROLLBAR_WIDTH) {
+            return 0;
+        }
+        if (mouseY >= upY && mouseY <= upY + RPR_SCROLL_BUTTON_HEIGHT) {
+            return -1;
+        }
+        if (mouseY >= downY && mouseY <= downY + RPR_SCROLL_BUTTON_HEIGHT) {
+            return 1;
+        }
+        if (mouseY >= trackTop && mouseY <= trackBottom) {
+            int thumbCenter = rprenames$getThumbCenter(trackTop, trackBottom);
+            return mouseY < thumbCenter ? -RPR_VISIBLE_ROWS : RPR_VISIBLE_ROWS;
+        }
+        return 0;
+    }
+
+    @Unique
+    private int rprenames$getThumbCenter(int trackTop, int trackBottom) {
+        int trackHeight = Math.max(8, trackBottom - trackTop);
+        int maxOffset = Math.max(1, rprenames$allEntries.size() - RPR_VISIBLE_ROWS);
+        int thumbHeight = Math.max(14, (int) Math.floor((double) trackHeight * RPR_VISIBLE_ROWS / rprenames$allEntries.size()));
+        int travel = Math.max(1, trackHeight - thumbHeight);
+        int thumbOffset = (int) Math.round((double) travel * rprenames$scrollOffset / maxOffset);
+        return trackTop + thumbOffset + (thumbHeight / 2);
     }
 
     @Unique
@@ -187,10 +258,8 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     @Override
     @Unique
     public boolean rprenames$isInsidePanel(double mouseX, double mouseY) {
-        int screenX = ((HandledScreenAccessor) (Object) this).rprenames$getX();
-        int screenY = ((HandledScreenAccessor) (Object) this).rprenames$getY();
-        int panelAbsX = screenX + rprenames$panelLocalX;
-        int panelAbsY = screenY + rprenames$panelLocalY;
+        int panelAbsX = rprenames$getPanelAbsX();
+        int panelAbsY = rprenames$getPanelAbsY();
         return mouseX >= panelAbsX
                 && mouseX <= panelAbsX + RPR_PANEL_WIDTH
                 && mouseY >= panelAbsY
@@ -200,11 +269,10 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     @Override
     @Unique
     public int rprenames$getHoveredRow(double mouseX, double mouseY) {
-        int screenX = ((HandledScreenAccessor) (Object) this).rprenames$getX();
-        int screenY = ((HandledScreenAccessor) (Object) this).rprenames$getY();
-        int panelAbsX = screenX + rprenames$panelLocalX;
-        int panelAbsY = screenY + rprenames$panelLocalY;
-        if (mouseX < panelAbsX || mouseX > panelAbsX + RPR_PANEL_WIDTH) {
+        int panelAbsX = rprenames$getPanelAbsX();
+        int panelAbsY = rprenames$getPanelAbsY();
+        int rowRight = panelAbsX + RPR_PANEL_WIDTH - RPR_SCROLLBAR_WIDTH - 3;
+        if (mouseX < panelAbsX || mouseX > rowRight) {
             return -1;
         }
         int rowsTop = panelAbsY + RPR_PADDING + RPR_HEADER_HEIGHT;
@@ -216,11 +284,10 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         return rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size() ? rowIndex : -1;
     }
 
-
     @Override
     @Unique
-    public java.util.List<String> rprenames$getVisibleEntries() {
-        return java.util.List.copyOf(rprenames$visibleEntries);
+    public List<String> rprenames$getVisibleEntries() {
+        return List.copyOf(rprenames$visibleEntries);
     }
 
     @Override
@@ -237,6 +304,7 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         rprenames$visibleEntries.clear();
         rprenames$scrollOffset = 0;
         rprenames$panelHeight = 0;
+        rprenames$hasInputItem = false;
     }
 
     @Unique
