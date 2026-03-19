@@ -175,10 +175,8 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return true;
         }
 
-        TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
-        String query = nameField.getText();
         Item item = input.getItem();
-        List<String> filtered = RenameCatalog.filter(item, query, Integer.MAX_VALUE);
+        List<String> filtered = RenameCatalog.filter(item, "", Integer.MAX_VALUE);
 
         rprenames$allEntries.clear();
         rprenames$allEntries.addAll(filtered);
