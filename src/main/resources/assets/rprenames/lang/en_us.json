@@ -1,4 +1,7 @@
 {
   "rprenames.title": "RP Renames",
-  "rprenames.more": "+%s more"
+  "rprenames.preview": "Preview",
+  "rprenames.preview_hint": "Hover or click a rename",
+  "rprenames.empty_slot": "Put item into left slot",
+  "rprenames.no_matches": "No renames found"
 }
