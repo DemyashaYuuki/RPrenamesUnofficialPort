@@ -12,6 +12,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.AnvilScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
@@ -25,13 +26,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(HandledScreen.class)
 public abstract class HandledScreenMixin extends Screen implements RenamePanelScreenExt {
     @Unique private static final int RPR_PANEL_WIDTH = 152;
-    @Unique private static final int RPR_VISIBLE_ROWS = 6;
     @Unique private static final int RPR_HEADER_HEIGHT = 12;
-    @Unique private static final int RPR_PREVIEW_HEIGHT = 24;
-    @Unique private static final int RPR_ROW_HEIGHT = 12;
+    @Unique private static final int RPR_PREVIEW_HEIGHT = 48;
     @Unique private static final int RPR_PADDING = 4;
     @Unique private static final int RPR_PAGE_BUTTON_WIDTH = 12;
     @Unique private static final int RPR_PAGE_BUTTON_HEIGHT = 12;
+    @Unique private static final int RPR_GRID_COLUMNS = 3;
+    @Unique private static final int RPR_GRID_ROWS = 2;
+    @Unique private static final int RPR_VISIBLE_ENTRIES = RPR_GRID_COLUMNS * RPR_GRID_ROWS;
+    @Unique private static final int RPR_CELL_WIDTH = 44;
+    @Unique private static final int RPR_CELL_HEIGHT = 20;
+    @Unique private static final int RPR_CELL_GAP = 4;
+    @Unique private static final int RPR_GRID_HEIGHT = (RPR_GRID_ROWS * RPR_CELL_HEIGHT) + ((RPR_GRID_ROWS - 1) * RPR_CELL_GAP);
 
     @Unique private final List<String> rprenames$allEntries = new ArrayList<>();
     @Unique private final List<String> rprenames$visibleEntries = new ArrayList<>();
@@ -74,45 +80,54 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         int previewBoxWidth = RPR_PANEL_WIDTH - (RPR_PADDING * 2);
         context.fill(previewBoxX, previewBoxY, previewBoxX + previewBoxWidth, previewBoxY + RPR_PREVIEW_HEIGHT, 0x55222222);
         rprenames$drawBorder(context, previewBoxX, previewBoxY, previewBoxWidth, RPR_PREVIEW_HEIGHT, 0x884A4A4A);
-        context.drawText(client.textRenderer, Text.translatable("rprenames.preview"), previewBoxX + 3, previewBoxY + 3, 0xFFAAAAAA, false);
 
         String previewText = rprenames$getPreviewText(mouseX, mouseY);
-        int previewTextWidth = previewBoxWidth - 6;
-        String previewLine = client.textRenderer.trimToWidth(previewText, previewTextWidth);
-        if (client.textRenderer.getWidth(previewLine) < client.textRenderer.getWidth(previewText)) {
-            previewLine = client.textRenderer.trimToWidth(previewText, Math.max(0, previewTextWidth - client.textRenderer.getWidth("..."))) + "...";
+        if (!previewText.isBlank()) {
+            ItemStack previewStack = rprenames$createPreviewStack(previewText);
+            int previewItemX = previewBoxX + 10;
+            int previewItemY = previewBoxY + 8;
+            context.getMatrices().push();
+            context.getMatrices().translate(0.0D, 0.0D, 200.0D);
+            context.getMatrices().scale(2.0F, 2.0F, 1.0F);
+            context.drawItem(previewStack, previewItemX / 2, previewItemY / 2);
+            context.getMatrices().pop();
+
+            String caption = client.textRenderer.trimToWidth(previewText, previewBoxWidth - 40);
+            if (client.textRenderer.getWidth(caption) < client.textRenderer.getWidth(previewText)) {
+                caption = client.textRenderer.trimToWidth(previewText, Math.max(0, previewBoxWidth - 40 - client.textRenderer.getWidth("..."))) + "...";
+            }
+            context.drawText(client.textRenderer, caption, previewBoxX + 38, previewBoxY + 18, 0xFFFFFFFF, false);
+        } else {
+            context.drawText(client.textRenderer, Text.translatable("rprenames.preview_hint"), previewBoxX + 6, previewBoxY + 18, 0xFFAAAAAA, false);
         }
-        context.drawText(client.textRenderer, previewLine, previewBoxX + 3, previewBoxY + 13, 0xFFFFFFFF, false);
 
-        int rowY = previewBoxY + RPR_PREVIEW_HEIGHT + RPR_PADDING;
-
+        int gridStartY = previewBoxY + RPR_PREVIEW_HEIGHT + RPR_PADDING;
         if (rprenames$visibleEntries.isEmpty()) {
             String messageKey = rprenames$hasInputItem ? "rprenames.no_matches" : "rprenames.empty_slot";
-            context.drawText(client.textRenderer, Text.translatable(messageKey), rprenames$panelLocalX + RPR_PADDING, rowY, 0xFFAAAAAA, false);
+            context.drawText(client.textRenderer, Text.translatable(messageKey), rprenames$panelLocalX + RPR_PADDING, gridStartY + 14, 0xFFAAAAAA, false);
         } else {
             String activeName = rprenames$getCurrentNameFieldText();
-
             for (int i = 0; i < rprenames$visibleEntries.size(); i++) {
+                int col = i % RPR_GRID_COLUMNS;
+                int row = i / RPR_GRID_COLUMNS;
+                int cellX = rprenames$panelLocalX + RPR_PADDING + col * (RPR_CELL_WIDTH + RPR_CELL_GAP);
+                int cellY = gridStartY + row * (RPR_CELL_HEIGHT + RPR_CELL_GAP);
+                int cellAbsX = panelAbsX + RPR_PADDING + col * (RPR_CELL_WIDTH + RPR_CELL_GAP);
+                int cellAbsY = panelAbsY + gridStartY + row * (RPR_CELL_HEIGHT + RPR_CELL_GAP);
                 String entry = rprenames$visibleEntries.get(i);
-                int absoluteRowY = panelAbsY + rowY;
-                boolean hovered = mouseX >= panelAbsX + 2
-                        && mouseX <= panelAbsX + RPR_PANEL_WIDTH - 3
-                        && mouseY >= absoluteRowY - 1
-                        && mouseY <= absoluteRowY + 9;
+                boolean hovered = mouseX >= cellAbsX
+                        && mouseX <= cellAbsX + RPR_CELL_WIDTH
+                        && mouseY >= cellAbsY
+                        && mouseY <= cellAbsY + RPR_CELL_HEIGHT;
                 boolean selected = entry.equals(activeName) || entry.equals(rprenames$previewEntry);
 
-                if (hovered) {
-                    context.fill(rprenames$panelLocalX + 2, rowY - 1, rprenames$panelLocalX + RPR_PANEL_WIDTH - 3, rowY + 10, 0x443A78D8);
-                } else if (selected) {
-                    context.fill(rprenames$panelLocalX + 2, rowY - 1, rprenames$panelLocalX + RPR_PANEL_WIDTH - 3, rowY + 10, 0x333A78D8);
-                }
+                int background = hovered ? 0x443A78D8 : selected ? 0x333A78D8 : 0x55222222;
+                int border = hovered || selected ? 0xFF6AA6FF : 0x884A4A4A;
+                context.fill(cellX, cellY, cellX + RPR_CELL_WIDTH, cellY + RPR_CELL_HEIGHT, background);
+                rprenames$drawBorder(context, cellX, cellY, RPR_CELL_WIDTH, RPR_CELL_HEIGHT, border);
 
-                String line = client.textRenderer.trimToWidth(entry, RPR_PANEL_WIDTH - (RPR_PADDING * 2) - 4);
-                if (client.textRenderer.getWidth(line) < client.textRenderer.getWidth(entry)) {
-                    line = client.textRenderer.trimToWidth(entry, Math.max(0, RPR_PANEL_WIDTH - (RPR_PADDING * 2) - 4 - client.textRenderer.getWidth("..."))) + "...";
-                }
-                context.drawText(client.textRenderer, line, rprenames$panelLocalX + RPR_PADDING, rowY, 0xFFFFFFFF, false);
-                rowY += RPR_ROW_HEIGHT;
+                ItemStack entryStack = rprenames$createPreviewStack(entry);
+                context.drawItem(entryStack, cellX + 14, cellY + 2);
             }
         }
 
@@ -150,9 +165,9 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return;
         }
 
-        int rowIndex = rprenames$getHoveredRow(mouseX, mouseY);
-        if (rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size() && (Object) this instanceof AnvilScreen) {
-            String entry = rprenames$visibleEntries.get(rowIndex);
+        int hoveredIndex = rprenames$getHoveredRow(mouseX, mouseY);
+        if (hoveredIndex >= 0 && hoveredIndex < rprenames$visibleEntries.size() && (Object) this instanceof AnvilScreen) {
+            String entry = rprenames$visibleEntries.get(hoveredIndex);
             TextFieldWidget nameField = ((AnvilScreenAccessor) (Object) this).rprenames$getNameField();
             nameField.setText(entry);
             rprenames$previewEntry = entry;
@@ -185,7 +200,7 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return false;
         }
 
-        rprenames$panelHeight = 8 + RPR_HEADER_HEIGHT + RPR_PREVIEW_HEIGHT + (RPR_VISIBLE_ROWS * RPR_ROW_HEIGHT) + RPR_PAGE_BUTTON_HEIGHT + (RPR_PADDING * 2);
+        rprenames$panelHeight = 8 + RPR_HEADER_HEIGHT + RPR_PREVIEW_HEIGHT + RPR_GRID_HEIGHT + RPR_PAGE_BUTTON_HEIGHT + (RPR_PADDING * 4);
         ItemStack input = anvilScreen.getScreenHandler().getSlot(0).getStack();
         rprenames$hasInputItem = !input.isEmpty();
 
@@ -198,8 +213,7 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         }
 
         Item item = input.getItem();
-        String query = rprenames$getCurrentNameFieldText();
-        List<String> filtered = RenameCatalog.filter(item, query, Integer.MAX_VALUE);
+        List<String> filtered = RenameCatalog.filter(item, "", Integer.MAX_VALUE);
 
         rprenames$allEntries.clear();
         rprenames$allEntries.addAll(filtered);
@@ -213,7 +227,7 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         }
 
         rprenames$refreshVisibleEntries();
-        rprenames$syncPreviewEntry(query);
+        rprenames$syncPreviewEntry();
         return true;
     }
 
@@ -229,9 +243,9 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
 
     @Unique
     private String rprenames$getPreviewText(int mouseX, int mouseY) {
-        int hoveredRow = rprenames$getHoveredRow(mouseX, mouseY);
-        if (hoveredRow >= 0 && hoveredRow < rprenames$visibleEntries.size()) {
-            String hoveredEntry = rprenames$visibleEntries.get(hoveredRow);
+        int hoveredIndex = rprenames$getHoveredRow(mouseX, mouseY);
+        if (hoveredIndex >= 0 && hoveredIndex < rprenames$visibleEntries.size()) {
+            String hoveredEntry = rprenames$visibleEntries.get(hoveredIndex);
             rprenames$previewEntry = hoveredEntry;
             return hoveredEntry;
         }
@@ -244,17 +258,33 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
             return rprenames$visibleEntries.get(0);
         }
 
-        return Text.translatable("rprenames.preview_hint").getString();
+        return "";
+    }
+
+    @Unique
+    private ItemStack rprenames$createPreviewStack(String entry) {
+        if (!((Object) this instanceof AnvilScreen anvilScreen)) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack source = anvilScreen.getScreenHandler().getSlot(0).getStack();
+        if (source.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack preview = source.copy();
+        preview.set(DataComponentTypes.CUSTOM_NAME, Text.literal(entry));
+        return preview;
     }
 
     @Unique
     private int rprenames$getPageCount() {
-        return Math.max(1, (int) Math.ceil((double) rprenames$allEntries.size() / RPR_VISIBLE_ROWS));
+        return Math.max(1, (int) Math.ceil((double) rprenames$allEntries.size() / RPR_VISIBLE_ENTRIES));
     }
 
     @Unique
     private boolean rprenames$hasMultiplePages() {
-        return rprenames$allEntries.size() > RPR_VISIBLE_ROWS;
+        return rprenames$allEntries.size() > RPR_VISIBLE_ENTRIES;
     }
 
     @Unique
@@ -284,22 +314,23 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     @Unique
     private void rprenames$refreshVisibleEntries() {
         rprenames$visibleEntries.clear();
-        int start = rprenames$page * RPR_VISIBLE_ROWS;
-        int end = Math.min(start + RPR_VISIBLE_ROWS, rprenames$allEntries.size());
+        int start = rprenames$page * RPR_VISIBLE_ENTRIES;
+        int end = Math.min(start + RPR_VISIBLE_ENTRIES, rprenames$allEntries.size());
         if (start < end) {
             rprenames$visibleEntries.addAll(rprenames$allEntries.subList(start, end));
         }
     }
 
     @Unique
-    private void rprenames$syncPreviewEntry(String query) {
+    private void rprenames$syncPreviewEntry() {
         if (rprenames$allEntries.isEmpty()) {
             rprenames$previewEntry = "";
             return;
         }
 
-        if (!query.isBlank() && rprenames$allEntries.contains(query)) {
-            rprenames$previewEntry = query;
+        String currentName = rprenames$getCurrentNameFieldText();
+        if (!currentName.isBlank() && rprenames$allEntries.contains(currentName)) {
+            rprenames$previewEntry = currentName;
             return;
         }
 
@@ -340,18 +371,20 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
     public int rprenames$getHoveredRow(double mouseX, double mouseY) {
         int panelAbsX = rprenames$getPanelAbsX();
         int panelAbsY = rprenames$getPanelAbsY();
-        if (mouseX < panelAbsX + 2 || mouseX > panelAbsX + RPR_PANEL_WIDTH - 3) {
-            return -1;
+        int gridAbsX = panelAbsX + RPR_PADDING;
+        int gridAbsY = panelAbsY + RPR_PADDING + RPR_HEADER_HEIGHT + RPR_PREVIEW_HEIGHT + RPR_PADDING;
+
+        for (int i = 0; i < rprenames$visibleEntries.size(); i++) {
+            int col = i % RPR_GRID_COLUMNS;
+            int row = i / RPR_GRID_COLUMNS;
+            int cellAbsX = gridAbsX + col * (RPR_CELL_WIDTH + RPR_CELL_GAP);
+            int cellAbsY = gridAbsY + row * (RPR_CELL_HEIGHT + RPR_CELL_GAP);
+            if (mouseX >= cellAbsX && mouseX <= cellAbsX + RPR_CELL_WIDTH && mouseY >= cellAbsY && mouseY <= cellAbsY + RPR_CELL_HEIGHT) {
+                return i;
+            }
         }
 
-        int rowsTop = panelAbsY + RPR_PADDING + RPR_HEADER_HEIGHT + RPR_PREVIEW_HEIGHT + RPR_PADDING;
-        int relativeY = (int) mouseY - rowsTop;
-        if (relativeY < 0) {
-            return -1;
-        }
-
-        int rowIndex = relativeY / RPR_ROW_HEIGHT;
-        return rowIndex >= 0 && rowIndex < rprenames$visibleEntries.size() ? rowIndex : -1;
+        return -1;
     }
 
     @Override
@@ -371,7 +404,7 @@ public abstract class HandledScreenMixin extends Screen implements RenamePanelSc
         int maxPage = Math.max(0, rprenames$getPageCount() - 1);
         rprenames$page = Math.max(0, Math.min(maxPage, rprenames$page + amount));
         rprenames$refreshVisibleEntries();
-        rprenames$syncPreviewEntry(rprenames$getCurrentNameFieldText());
+        rprenames$syncPreviewEntry();
     }
 
     @Unique
